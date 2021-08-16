@@ -218,7 +218,7 @@ func doCommonCase(cellRows [][]string) {
 				fmt.Println("cbat_id:", data["cbat_id"])
 				cbat_id := fmt.Sprint((data["cbat_id"].(int64)))
 
-				sql = "SELECT cas_id,cas_code,cas_m,cas_se_no FROM bank_case WHERE cas_cbat_id = '#{cas_cbat_id}'"
+				sql = "SELECT cas_id,cas_code,cas_m,cas_se_no,cas_num FROM bank_case WHERE cas_cbat_id = '#{cas_cbat_id}'"
 				sql = strings.Replace(sql, "#{cas_cbat_id}", cbat_id, -1)
 
 				fmt.Println("sql:", sql)
@@ -233,28 +233,33 @@ func doCommonCase(cellRows [][]string) {
 					fmt.Println("cas_se_no:", caseRow["cas_se_no"])
 					for l := 0; l < len(caseRows); l++ {
 						caseRowT := caseRows[l]
-						if caseRowT["cas_id"] != caseRow["cas_id"] && caseRowT["cas_code"] == caseRow["cas_code"] && caseRowT["cas_se_no"] != caseRow["cas_se_no"] {
+						if caseRowT["cas_id"] != caseRow["cas_id"] && caseRowT["cas_se_no"] != caseRow["cas_se_no"] && caseRowT["cas_num"] == caseRow["cas_num"] {
+							upsql := "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_id = '#{cas_id}'"
 							if caseRowT["cas_m"].(float64) < caseRow["cas_m"].(float64) {
-								sql = "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_id = '#{cas_id}'"
-								sql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRow["cas_se_no"])), -1)
-								sql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRowT["cas_id"])), -1)
+								upsql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRow["cas_se_no"])), -1)
+								upsql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRowT["cas_id"])), -1)
+
+								upCaseRows, upCaseerr := DoExec(upsql)
+								if upCaseerr != nil {
+									fmt.Println("query: ", upCaseerr)
+									fmt.Println(upCaseRows)
+									return
+								}
 
 								fmt.Println("UPDATE sql:", sql)
-							} else {
-								sql = "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_id = '#{cas_id}'"
-								sql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRowT["cas_se_no"])), -1)
-								sql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRow["cas_id"])), -1)
+							} else if caseRowT["cas_m"].(float64) >= caseRow["cas_m"].(float64) {
+								upsql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRowT["cas_se_no"])), -1)
+								upsql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRow["cas_id"])), -1)
+
+								upCaseRows, upCaseerr := DoExec(sql)
+								if upCaseerr != nil {
+									fmt.Println("query: ", upCaseerr)
+									fmt.Println(upCaseRows)
+									return
+								}
 
 								fmt.Println("UPDATE sql:", sql)
 							}
-
-							upCaseRows, upCaseerr := DoExec(sql)
-							if upCaseerr != nil {
-								fmt.Println("query: ", upCaseerr)
-								fmt.Println(upCaseRows)
-								return
-							}
-
 						}
 					}
 				}
