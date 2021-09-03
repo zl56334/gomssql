@@ -32,6 +32,32 @@ var help = func() {
 	fmt.Println("类似格式为 ‘.\\TestSqlServer.exe -o commonCase -f c:\\test.xlsx’")
 }
 
+// var db = Mssql{
+// 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
+// 	dataSource: "192.168.1.2",
+// 	database:   "ccds",
+// 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
+// 	windows: false,
+// 	sa: SA{
+// 		user: "sa",
+// 		passwd: "A64988329b",
+// 		port:   1433,
+// 	},
+// }
+
+var db = Mssql{
+	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
+	dataSource: "10.27.42.9",
+	database:   "ccds",
+	// windows: true 为windows身份验证，false 必须设置sa账号和密码
+	windows: false,
+	sa: SA{
+		user:   "sa",
+		passwd: "sa123abc()",
+		port:   1433,
+	},
+}
+
 func (m *Mssql) Open() (err error) {
 	var conf []string
 	conf = append(conf, "Provider=SQLOLEDB")
@@ -57,18 +83,6 @@ func (m *Mssql) Open() (err error) {
 }
 
 func DoQuery(sqlInfo string, args ...interface{}) ([]map[string]interface{}, error) {
-	db := Mssql{
-		// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-		dataSource: "10.27.42.9",
-		database:   "ccds",
-		// windows: true 为windows身份验证，false 必须设置sa账号和密码
-		windows: false,
-		sa: SA{
-			user:   "sa",
-			passwd: "sa123abc()",
-			port:   1433,
-		},
-	}
 	// 连接数据库
 	err := db.Open()
 	if err != nil {
@@ -105,18 +119,6 @@ func DoQuery(sqlInfo string, args ...interface{}) ([]map[string]interface{}, err
 }
 
 func DoExec(sqlInfo string, args ...interface{}) (int64, error) {
-	db := Mssql{
-		// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-		dataSource: "10.27.42.9",
-		database:   "ccds",
-		// windows: true 为windows身份验证，false 必须设置sa账号和密码
-		windows: false,
-		sa: SA{
-			user:   "sa",
-			passwd: "sa123abc()",
-			port:   1433,
-		},
-	}
 	// 连接数据库
 	err := db.Open()
 	if err != nil {
@@ -158,45 +160,34 @@ func doUpdateSeNoByCaseId(cellRows [][]string) {
 		fmt.Println("未找到 员工ID 列")
 		return
 	}
-
-	db := Mssql{
-		// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-		dataSource: "10.27.42.9",
-		database:   "ccds",
-		// windows: true 为windows身份验证，false 必须设置sa账号和密码
-		windows: false,
-		sa: SA{
-			user:   "sa",
-			passwd: "sa123abc()",
-			port:   1433,
-		},
-	}
-	// 连接数据库
-	err := db.Open()
-	if err != nil {
-		fmt.Println("sql open:", err)
-		return
-	}
-	defer db.Close()
 	for k, v := range cellRows {
 		if k != 0 {
-			sql := "UPDATE bank_case set cas_se_no = '#{cas_se_no}' where cas_id = '#{cas_id}'"
-			sql = strings.Replace(sql, "#{cas_id}", v[0], -1)
-			sql = strings.Replace(sql, "#{cas_se_no}", v[1], -1)
-			fmt.Println(sql)
-			rows, err := db.Query(sql)
-
-			if err != nil {
-				fmt.Println("query: ", err)
-				fmt.Println(rows)
-				return
+			sql_select_seno := "SELECT se_no FROM sal_emp WHERE se_no = '#{cas_se_no}'"
+			sql_select_seno = strings.Replace(sql_select_seno, "#{cas_se_no}", v[1], -1)
+			sql_select_seno_re_rows, sql_select_seno_re_err := DoQuery(sql_select_seno)
+			if sql_select_seno_re_err != nil {
+				fmt.Println("query: ", sql_select_seno_re_err)
 			} else {
-				fmt.Println("已完成：", k)
-			}
-		} else {
-			fmt.Println("开始执行更改")
-		}
+				if len(sql_select_seno_re_rows) == 0 {
+					reStr := k + 1
+					fmt.Println("无法找到第 " + fmt.Sprint(reStr) + " 行的员工ID: " + v[1])
+				} else {
+					sql_update_casById := "UPDATE bank_case set cas_se_no = '#{cas_se_no}' where cas_id = '#{cas_id}'"
+					sql_update_casById = strings.Replace(sql_update_casById, "#{cas_id}", v[0], -1)
+					sql_update_casById = strings.Replace(sql_update_casById, "#{cas_se_no}", v[1], -1)
+					fmt.Println(sql_update_casById)
+					rows, err := DoExec(sql_update_casById)
 
+					if err != nil {
+						fmt.Println("query: ", err)
+						fmt.Println(rows)
+						return
+					} else {
+						fmt.Println("已完成：", k)
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -212,6 +203,10 @@ func doCommonCase(cellRows [][]string) {
 			sql = strings.Replace(sql, "#{cbat_code}", v[0], -1)
 			fmt.Println(sql)
 			rows, err := DoQuery(sql)
+			if len(rows) == 0 {
+				fmt.Println("没有找到对应的案件批次号： " + fmt.Sprint(v[0]))
+				return
+			}
 
 			for i := 0; i < len(rows); i++ {
 				data := rows[i]
@@ -231,50 +226,42 @@ func doCommonCase(cellRows [][]string) {
 					fmt.Println("cas_code:", caseRow["cas_code"])
 					fmt.Println("cas_m:", caseRow["cas_m"])
 					fmt.Println("cas_se_no:", caseRow["cas_se_no"])
-					for l := 0; l < len(caseRows); l++ {
-						caseRowT := caseRows[l]
-						if caseRowT["cas_id"] != caseRow["cas_id"] && caseRowT["cas_se_no"] != caseRow["cas_se_no"] && caseRowT["cas_num"] == caseRow["cas_num"] {
-							upsql := "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_id = '#{cas_id}'"
-							if caseRowT["cas_m"].(float64) < caseRow["cas_m"].(float64) {
-								upsql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRow["cas_se_no"])), -1)
-								upsql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRowT["cas_id"])), -1)
+					sql_select_cas_max_num := "SELECT cas_se_no FROM bank_case WHERE cas_m = (SELECT MAX(cas_m) FROM bank_case WHERE cas_cbat_id = '#{cas_cbat_id}' AND cas_num = '#{cas_num}')"
+					sql_select_cas_max_num = strings.Replace(sql_select_cas_max_num, "#{cas_cbat_id}", cbat_id, -1)
+					sql_select_cas_max_num = strings.Replace(sql_select_cas_max_num, "#{cas_cbat_id}", fmt.Sprint(caseRow["cas_m"]), -1)
 
-								upCaseRows, upCaseerr := DoExec(upsql)
-								if upCaseerr != nil {
-									fmt.Println("query: ", upCaseerr)
-									fmt.Println(upCaseRows)
-									return
-								}
+					sql_select_cas_max_num_re_rows, sql_select_cas_max_num_err := DoQuery(sql)
 
-								fmt.Println("UPDATE sql:", sql)
-							} else if caseRowT["cas_m"].(float64) >= caseRow["cas_m"].(float64) {
-								upsql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint((caseRowT["cas_se_no"])), -1)
-								upsql = strings.Replace(sql, "#{cas_id}", fmt.Sprint((caseRow["cas_id"])), -1)
+					if len(sql_select_cas_max_num_re_rows) != 0 {
+						re_se_no := sql_select_cas_max_num_re_rows[0]
+						sql_update_seNo := "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_num = '#{cas_num}'"
+						sql_update_seNo = strings.Replace(sql_update_seNo, "#{cas_se_no}", fmt.Sprint(re_se_no), -1)
+						sql_update_seNo = strings.Replace(sql_update_seNo, "#{cas_num}", fmt.Sprint(caseRow["cas_num"]), -1)
 
-								upCaseRows, upCaseerr := DoExec(sql)
-								if upCaseerr != nil {
-									fmt.Println("query: ", upCaseerr)
-									fmt.Println(upCaseRows)
-									return
-								}
+						_, caseerr := DoExec(sql_update_seNo)
 
-								fmt.Println("UPDATE sql:", sql)
-							}
+						if caseerr != nil {
+							fmt.Println("query: ", caseerr)
+						} else {
+							fmt.Println("已完成", fmt.Sprint(j)+"/"+fmt.Sprint(len(caseRows)))
 						}
+					}
+
+					if sql_select_cas_max_num_err != nil {
+						fmt.Println("query: ", sql_select_cas_max_num_err)
+						fmt.Println(sql_select_cas_max_num_re_rows)
 					}
 				}
 
 				if caseerr != nil {
 					fmt.Println("query: ", caseerr)
 					fmt.Println(rows)
-					return
 				}
 
 			}
 			if err != nil {
 				fmt.Println("query: ", err)
 				fmt.Println(rows)
-				return
 			} else {
 				fmt.Println("已完成：", k)
 			}
@@ -333,7 +320,6 @@ func doExchangeCase(cellRows [][]string) {
 			if err != nil {
 				fmt.Println("query: ", err)
 				fmt.Println(rows)
-				return
 			}
 			changeNum := len(rows)
 			cellRows[k] = append(cellRows[k], fmt.Sprint(changeNum))
@@ -370,7 +356,6 @@ func doExchangeCase(cellRows [][]string) {
 
 				if caseerr != nil {
 					fmt.Println("query: ", caseerr)
-					return
 				}
 				fmt.Println(updateRows)
 				completeCaseList = completeCaseList + ",'" + fmt.Sprint(data["cas_id"]) + "'"
@@ -379,7 +364,6 @@ func doExchangeCase(cellRows [][]string) {
 			if changeCsaIderr != nil {
 				fmt.Println("query: ", changeCsaIderr)
 				fmt.Println(changeCsaIdRows)
-				return
 			}
 		}
 	}
