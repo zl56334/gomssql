@@ -369,6 +369,27 @@ func doExchangeCase(cellRows [][]string) {
 	}
 }
 
+func clearRemark6() {
+	sql := "UPDATE bank_case SET cas_remark6 = REPLACE(cas_remark6, '再委托|', '') WHERE cas_remark6 LIKE '%再委托|%'"
+	DoExec(sql)
+	fmt.Println("执行结束")
+}
+
+func insertPhoneInfo(rows [][]string) {
+	for k, v := range rows {
+		if k != 0 {
+			sql := "INSERT INTO dbo.phone_list (phl_state, phl_name, phl_num, phl_cas_id, phl_cat, phl_count, phl_remark, phl_isdel, phl_isnew, phl_upd_time ) SELECT 1,'#{phl_name}','#{phl_num}',cas_id,'第三方',0,'#{phl_remark}',NULL,1,NULL FROM bank_case WHERE cas_code = '#{cas_code}' and cas_state='0'"
+
+			sql = strings.Replace(sql, "#{phl_name}", v[0], -1)
+			sql = strings.Replace(sql, "#{phl_num}", v[1], -1)
+			sql = strings.Replace(sql, "#{phl_remark}", v[2], -1)
+			sql = strings.Replace(sql, "#{cas_code}", v[3], -1)
+			fmt.Println(sql)
+			DoExec(sql)
+		}
+	}
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "催收辅助"
@@ -403,10 +424,12 @@ func main() {
 			rows := readXlsx(fPath)
 			fmt.Println("Result rows:", rows)
 			doExchangeCase(rows)
-		} else if operation == "commonCase" {
+		} else if operation == "clearRemark6" {
+			clearRemark6()
+		} else if operation == "insertPhoneInfo" {
 			rows := readXlsx(fPath)
 			fmt.Println("Result rows:", rows)
-			doCommonCase(rows)
+			insertPhoneInfo(rows)
 		} else {
 			help()
 		}

@@ -1,0 +1,1 @@
+.\TestSqlServer.exe -o insertPhoneInfo -f .\moban\insertPhoneInfo.xlsx

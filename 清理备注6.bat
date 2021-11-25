@@ -1,0 +1,1 @@
+.\TestSqlServer.exe -o clearRemark6
