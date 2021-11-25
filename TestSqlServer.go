@@ -39,7 +39,7 @@ var help = func() {
 // 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
 // 	windows: false,
 // 	sa: SA{
-// 		user: "sa",
+// 		user:   "sa",
 // 		passwd: "A64988329b",
 // 		port:   1433,
 // 	},
@@ -403,6 +403,10 @@ func main() {
 			rows := readXlsx(fPath)
 			fmt.Println("Result rows:", rows)
 			doExchangeCase(rows)
+		} else if operation == "commonCase" {
+			rows := readXlsx(fPath)
+			fmt.Println("Result rows:", rows)
+			doCommonCase(rows)
 		} else {
 			help()
 		}
