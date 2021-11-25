@@ -369,6 +369,65 @@ func doExchangeCase(cellRows [][]string) {
 	}
 }
 
+func doExchangeCaseTemp(cellRows [][]string) {
+	fmt.Println(cellRows)
+
+	if cellRows[0][0] != "批次" {
+		fmt.Println("未找到 批次 列")
+		return
+	}
+	if cellRows[0][1] != "留案Code" {
+		fmt.Println("未找到 留案Code 列")
+		return
+	}
+	stayCaseCodeStringForAll := ""
+	for k, v := range cellRows {
+		if k != 0 {
+			if k == 1 {
+				stayCaseCodeStringForAll = "'" + v[1] + "'"
+			} else {
+				stayCaseCodeStringForAll = stayCaseCodeStringForAll + ",'" + v[1] + "'"
+			}
+		}
+	}
+
+	sql := ""
+	for k, v := range cellRows {
+		if k != 0 {
+			if k == 1 {
+				sql = "SELECT DISTINCT bc.cas_se_no FROM dbo.bank_case AS bc INNER JOIN dbo.case_bat AS cb ON  bc.cas_cbat_id = cb.cbat_id WHERE cb.cbat_code = '#{cbat_code}'"
+				sql = strings.Replace(sql, "#{cbat_code}", v[0], -1)
+				fmt.Println(sql)
+			}
+			if k > 1 {
+				sql = sql + " OR cb.cbat_code = '#{cbat_code}'"
+				sql = strings.Replace(sql, "#{cbat_code}", v[0], -1)
+				fmt.Println(sql)
+			}
+		}
+
+	}
+
+	if sql == "" {
+		return
+	}
+
+	cas_se_no_list, err := DoQuery(sql)
+	if err != nil {
+		fmt.Println("query: ", err)
+		fmt.Println(cas_se_no_list)
+	}
+
+	casSeNoForAll := ""
+	for i, cas_se_no := range cas_se_no_list {
+		if i == 0 {
+			casSeNoForAll = "'" + fmt.Sprint(cas_se_no["cas_se_no"]) + "'"
+		} else {
+			casSeNoForAll = casSeNoForAll + ",'" + fmt.Sprint(cas_se_no["cas_se_no"]) + "'"
+		}
+	}
+}
+
 func clearRemark6() {
 	sql := "UPDATE bank_case SET cas_remark6 = REPLACE(cas_remark6, '再委托|', '') WHERE cas_remark6 LIKE '%再委托|%'"
 	DoExec(sql)
@@ -438,3 +497,9 @@ func main() {
 
 	app.Run(os.Args)
 }
+
+// func main() {
+// 	rows := readXlsx("E:\\work\\goproject\\gomssql\\moban\\huanshou1.xlsx")
+// 	fmt.Println("Result rows:", rows)
+// 	doExchangeCaseTemp(rows)
+// }
