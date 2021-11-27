@@ -447,6 +447,10 @@ func insertPhoneInfo(rows [][]string) {
 			DoExec(sql)
 		}
 	}
+
+	sql := "DELETE FROM dbo.phone_list WHERE phl_id NOT IN (SELECT MAX ( phl_id ) FROM dbo.phone_list GROUP BY phl_name, phl_num, phl_cas_id, phl_cat, phl_count, phl_remark)"
+	fmt.Println(sql)
+	DoExec(sql)
 }
 
 func main() {
