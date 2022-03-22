@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+
 	"os"
 	"strings"
 
@@ -47,7 +48,7 @@ var help = func() {
 
 var db = Mssql{
 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-	dataSource: "10.27.42.9",
+	dataSource: "127.0.0.1",
 	database:   "ccds",
 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
 	windows: false,
@@ -57,6 +58,32 @@ var db = Mssql{
 		port:   1433,
 	},
 }
+
+// var db = Mssql{
+// 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
+// 	dataSource: "10.27.44.10",
+// 	database:   "ccds",
+// 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
+// 	windows: false,
+// 	sa: SA{
+// 		user:   "sa",
+// 		passwd: "sa123abc()",
+// 		port:   1433,
+// 	},
+// }
+
+// var db = Mssql{
+// 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
+// 	dataSource: "10.27.152.99",
+// 	database:   "ccds",
+// 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
+// 	windows: false,
+// 	sa: SA{
+// 		user:   "sa",
+// 		passwd: "sa123abc()",
+// 		port:   1433,
+// 	},
+// }
 
 func (m *Mssql) Open() (err error) {
 	var conf []string
@@ -380,6 +407,7 @@ func doExchangeCaseTemp(cellRows [][]string) {
 		fmt.Println("未找到 留案Code 列")
 		return
 	}
+
 	stayCaseCodeStringForAll := ""
 	for k, v := range cellRows {
 		if k != 0 {
@@ -390,27 +418,33 @@ func doExchangeCaseTemp(cellRows [][]string) {
 			}
 		}
 	}
+	fmt.Println("stayCaseCodeStringForAll:", stayCaseCodeStringForAll)
 
-	sql := ""
+	cbat_code_sql := ""
 	for k, v := range cellRows {
 		if k != 0 {
 			if k == 1 {
-				sql = "SELECT DISTINCT bc.cas_se_no FROM dbo.bank_case AS bc INNER JOIN dbo.case_bat AS cb ON  bc.cas_cbat_id = cb.cbat_id WHERE cb.cbat_code = '#{cbat_code}'"
-				sql = strings.Replace(sql, "#{cbat_code}", v[0], -1)
-				fmt.Println(sql)
-			}
-			if k > 1 {
-				sql = sql + " OR cb.cbat_code = '#{cbat_code}'"
-				sql = strings.Replace(sql, "#{cbat_code}", v[0], -1)
-				fmt.Println(sql)
+				cbat_code_sql = "'" + v[0] + "'"
+			} else {
+				cbat_code_sql = cbat_code_sql + ",'" + v[0] + "'"
 			}
 		}
-
 	}
 
-	if sql == "" {
+	fmt.Println("cbat_code_sql:", cbat_code_sql)
+
+	if cbat_code_sql == "" {
 		return
 	}
+	sql := "SELECT bc.cas_se_no,COUNT(bc.cas_id) AS cas_change_num FROM dbo.bank_case AS bc INNER JOIN dbo.case_bat AS cb ON  bc.cas_cbat_id = cb.cbat_id WHERE cb.cbat_code IN (#{cbat_code_sql})"
+	sql = strings.Replace(sql, "#{cbat_code_sql}", cbat_code_sql, -1)
+	if stayCaseCodeStringForAll != "" {
+		sql = sql + " AND bc.cas_code NOT IN (" + stayCaseCodeStringForAll + ") GROUP BY bc.cas_se_no"
+	} else {
+		sql = sql + " GROUP BY bc.cas_se_no"
+	}
+
+	fmt.Println("cas_se_no_list sql: ", sql)
 
 	cas_se_no_list, err := DoQuery(sql)
 	if err != nil {
@@ -425,6 +459,44 @@ func doExchangeCaseTemp(cellRows [][]string) {
 		} else {
 			casSeNoForAll = casSeNoForAll + ",'" + fmt.Sprint(cas_se_no["cas_se_no"]) + "'"
 		}
+	}
+
+	fmt.Println("casSeNoForAll:", casSeNoForAll)
+
+	sql = "SELECT bc.cas_id,bc.cas_se_no AS cas_change_num FROM dbo.bank_case AS bc INNER JOIN dbo.case_bat AS cb ON  bc.cas_cbat_id = cb.cbat_id WHERE cb.cbat_code IN (#{cbat_code_sql})"
+	sql = strings.Replace(sql, "#{cbat_code_sql}", cbat_code_sql, -1)
+	if stayCaseCodeStringForAll != "" {
+		sql = sql + " AND bc.cas_code NOT IN (" + stayCaseCodeStringForAll + ")"
+	}
+
+	fmt.Println("sql:", sql)
+
+	cas_id_se_no_list, err := DoQuery(sql)
+	if err != nil {
+		fmt.Println("query: ", err)
+		fmt.Println(cas_id_se_no_list)
+	}
+
+	fmt.Println("cas_id_se_no_list:", cas_id_se_no_list)
+
+	for _, cas_id_se_no := range cas_id_se_no_list {
+		for _, cas_se_no := range cas_se_no_list {
+			if cas_id_se_no["cas_se_no"] != cas_se_no["cas_se_no"] && cas_se_no["cas_change_num"].(int) > 0 {
+				sql = "UPDATE bank_case SET cas_se_no = '#{cas_se_no}' WHERE cas_id = '#{cas_id}'"
+				sql = strings.Replace(sql, "#{cas_se_no}", fmt.Sprint(cas_se_no["cas_se_no"]), -1)
+				sql = strings.Replace(sql, "#{cas_id}", fmt.Sprint(cas_id_se_no["cas_id"]), -1)
+				cas_se_no["cas_change_num"] = cas_se_no["cas_change_num"].(int) - 1
+				break
+			}
+		}
+		fmt.Println("sql:", sql)
+
+		updateRows, caseerr := DoExec(sql)
+
+		if caseerr != nil {
+			fmt.Println("query: ", caseerr)
+		}
+		fmt.Println(updateRows)
 	}
 }
 
@@ -505,5 +577,6 @@ func main() {
 // func main() {
 // 	rows := readXlsx("E:\\work\\goproject\\gomssql\\moban\\huanshou1.xlsx")
 // 	fmt.Println("Result rows:", rows)
-// 	doExchangeCaseTemp(rows)
+// 	// doExchangeCaseTemp(rows)
+// 	clearRemark6()
 // }
