@@ -23,9 +23,9 @@
     // Complete functions with their parameter signature
     "go.useCodeSnippetsOnFunctionSuggest": false,
     // Specifies the GOPATH to use when no environment variable is set.
-    "go.gopath": "D:/Program Files/GO/bin",
+    "go.gopath": "C:/Users/Fylan/.g/go/bin",
     // Specifies the GOROOT to use when no environment variable is set.
-    "go.goroot": "D:/Program Files/GO",
+    "go.goroot": "C:/Users/Fylan/.g/go",
     // Run formatting tool on save.
     "go.formatOnSave": true,
     // Run 'go test -coverprofile' on save
@@ -39,6 +39,13 @@
     // Environment variables that will passed to the process that runs the Go tests
     "go.testEnvVars": {},
     // Autocomplete members from unimported packages.
-    "go.autocompleteUnimportedPackages": true
+    "go.autocompleteUnimportedPackages": true,
+    "workbench.colorCustomizations": {
+        "editor.lineHighlightBackground": "#1073cf2d",
+        "editor.lineHighlightBorder": "#9fced11f",
+        "activityBar.background": "#0B0C9A",
+        "titleBar.activeBackground": "#1011D8",
+        "titleBar.activeForeground": "#FDFDFF"
+    }
         
 }

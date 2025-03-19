@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/360EntSecGroup-Skylar/excelize/v2"
 	_ "github.com/mattn/go-adodb"
 	"github.com/urfave/cli"
+	"github.com/xuri/excelize/v2"
 )
 
 type Mssql struct {
@@ -46,22 +46,9 @@ var help = func() {
 // 	},
 // }
 
-var db = Mssql{
-	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-	dataSource: "127.0.0.1",
-	database:   "ccds",
-	// windows: true 为windows身份验证，false 必须设置sa账号和密码
-	windows: false,
-	sa: SA{
-		user:   "sa",
-		passwd: "sa123abc()",
-		port:   1433,
-	},
-}
-
 // var db = Mssql{
 // 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
-// 	dataSource: "10.27.44.10",
+// 	dataSource: "127.0.0.1",
 // 	database:   "ccds",
 // 	// windows: true 为windows身份验证，false 必须设置sa账号和密码
 // 	windows: false,
@@ -71,6 +58,20 @@ var db = Mssql{
 // 		port:   1433,
 // 	},
 // }
+
+// 石家庄
+var db = Mssql{
+	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
+	dataSource: "10.27.44.10",
+	database:   "ccds",
+	// windows: true 为windows身份验证，false 必须设置sa账号和密码
+	windows: false,
+	sa: SA{
+		user:   "sa",
+		passwd: "sa123abc()",
+		port:   1433,
+	},
+}
 
 // var db = Mssql{
 // 	// 如果数据库是默认实例（MSSQLSERVER）则直接使用IP，命名实例需要指明。
@@ -525,6 +526,58 @@ func insertPhoneInfo(rows [][]string) {
 	DoExec(sql)
 }
 
+func retrieveTableContentByNameUploadItToDatabase(fpath string) {
+	f, err := excelize.OpenFile(fpath)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// rows, err := f.GetRows("Sheet1")
+	for _, sheetName := range f.GetSheetList() {
+		fmt.Println(sheetName)
+		rows, err := f.GetRows(sheetName)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		for _, row := range rows {
+			for _, colCell := range row {
+				fmt.Print(colCell, "\t")
+			}
+		}
+	}
+
+	// for k, v := range cellRows {
+	// 	if k != 0 {
+	// 		sql_select_seno := "SELECT se_no FROM sal_emp WHERE se_no = '#{cas_se_no}'"
+	// 		sql_select_seno = strings.Replace(sql_select_seno, "#{cas_se_no}", v[1], -1)
+	// 		sql_select_seno_re_rows, sql_select_seno_re_err := DoQuery(sql_select_seno)
+	// 		if sql_select_seno_re_err != nil {
+	// 			fmt.Println("query: ", sql_select_seno_re_err)
+	// 		} else {
+	// 			if len(sql_select_seno_re_rows) == 0 {
+	// 				reStr := k + 1
+	// 				fmt.Println("无法找到第 " + fmt.Sprint(reStr) + " 行的员工ID: " + v[1])
+	// 			} else {
+	// 				sql_update_casById := "UPDATE bank_case set cas_se_no = '#{cas_se_no}' where cas_id = '#{cas_id}'"
+	// 				sql_update_casById = strings.Replace(sql_update_casById, "#{cas_id}", v[0], -1)
+	// 				sql_update_casById = strings.Replace(sql_update_casById, "#{cas_se_no}", v[1], -1)
+	// 				fmt.Println(sql_update_casById)
+	// 				rows, err := DoExec(sql_update_casById)
+
+	// 				if err != nil {
+	// 					fmt.Println("query: ", err)
+	// 					fmt.Println(rows)
+	// 					return
+	// 				} else {
+	// 					fmt.Println("已完成：", k)
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "催收辅助"
@@ -563,6 +616,10 @@ func main() {
 			clearRemark6()
 		} else if operation == "insertPhoneInfo" {
 			rows := readXlsx(fPath)
+			fmt.Println("Result rows:", rows)
+			insertPhoneInfo(rows)
+		} else if operation == "retrieveTableContentByNameUploadItToDatabase" {
+			rows := retrieveTableContentByNameUploadItToDatabase(fPath)
 			fmt.Println("Result rows:", rows)
 			insertPhoneInfo(rows)
 		} else {
