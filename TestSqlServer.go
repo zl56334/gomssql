@@ -3,8 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-
 	"os"
+	"strconv"
+
 	"strings"
 
 	_ "github.com/mattn/go-adodb"
@@ -540,7 +541,6 @@ func withdrawalCase(rows [][]string) {
 	}
 }
 
-
 func deleteBankCaseOnID(rows [][]string) {
 	for k, v := range rows {
 		if k != 0 && len(v) == 1 {
@@ -572,8 +572,11 @@ func retrieveTableContentByNameUploadItToDatabase(fpath string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// 创建一个新的Excel文件
+	reF := excelize.NewFile()
 	// rows, err := f.GetRows("Sheet1")
-	for _, sheetName := range f.GetSheetList() {
+	for sheetNums, sheetName := range f.GetSheetList() {
 		fmt.Println(sheetName)
 		rows, err := f.GetRows(sheetName)
 		if err != nil {
@@ -581,11 +584,54 @@ func retrieveTableContentByNameUploadItToDatabase(fpath string) {
 			continue
 		}
 
-		for _, row := range rows {
-			for _, colCell := range row {
-				fmt.Print(colCell, "\t")
+		customerName := ""
+		overdueStage := ""
+		regAdd := ""
+		for reRowsNum, row := range rows {
+			for colCellNum, colCell := range row {
+				// 判断字符串是否包含 通讯地址
+				if strings.Contains(colCell, "通讯地址") {
+					fmt.Println("找到通信地址列")
+					// 拆分字符串 删除字符串 通讯地址 前的内容
+					colCell = strings.Replace(colCell,strings.Split(colCell, "通讯地址")[0], "", -1)
+					regAdd = colCell
+				}
+
+				// 判断字符串是否等于 姓名
+				if colCell == "姓名" {
+					fmt.Println("找到姓名列")
+					// 找到姓名列，获取姓名列的下一行
+					nextRow := rows[reRowsNum+1]
+					// 获取姓名列的下一行的第一个单元格
+					firstCell := nextRow[0]
+					// 获取姓名列的下一行的第二个单元格
+					customerName = firstCell
+				}
+				// 判断字符串是否等于 逾期阶段
+				if colCell == "逾期阶段" {
+					fmt.Println("找到逾期阶段列")
+					// 找到逾期阶段列，获取逾期阶段列的下一行
+					nextRow := rows[reRowsNum+1]
+					// 获取逾期阶段列的下一行的对应的单元格
+					nextCell := nextRow[colCellNum]
+
+					overdueStage = nextCell
+				}
+
 			}
 		}
+		//导出customerName overdueStage regAdd到 excel文件至当前目录
+		reF.SetCellValue("Sheet1", "A"+strconv.Itoa(sheetNums+1), customerName)
+		reF.SetCellValue("Sheet1", "B"+strconv.Itoa(sheetNums+1), overdueStage)
+		reF.SetCellValue("Sheet1", "C"+strconv.Itoa(sheetNums+1), regAdd)
+
+		fmt.Print(customerName)
+		fmt.Print(overdueStage)
+		fmt.Print(regAdd)
+	}
+	// 保存文件
+	if err := reF.SaveAs("result.xlsx"); err != nil {
+		fmt.Println(err)
 	}
 
 	// for k, v := range cellRows {
@@ -683,8 +729,8 @@ func main() {
 }
 
 // func main() {
-// 	rows := readXlsx("E:\\work\\goproject\\gomssql\\moban\\huanshou1.xlsx")
-// 	fmt.Println("Result rows:", rows)
+// 	// rows := readXlsx("E:\\work\\goproject\\gomssql\\moban\\huanshou1.xlsx")
+// 	// fmt.Println("Result rows:", rows)
 // 	// doExchangeCaseTemp(rows)
-// 	clearRemark6()
+// 	retrieveTableContentByNameUploadItToDatabase("E:\\work\\goproject\\src\\code.fylan.com\\servergroup\\gomssql\\294.xlsx")
 // }

@@ -1,0 +1,1 @@
+.\TestSqlServer.exe -o retrieveTableContentByNameUploadItToDatabase -f .\moban\phoneScanFile.xlsx
