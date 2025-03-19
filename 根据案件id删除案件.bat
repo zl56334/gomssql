@@ -1,0 +1,1 @@
+.\TestSqlServer.exe -o deleteBankCaseOnID -f .\moban\shanchuanjian.xlsx

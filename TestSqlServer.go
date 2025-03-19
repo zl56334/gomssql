@@ -154,6 +154,8 @@ func DoExec(sqlInfo string, args ...interface{}) (int64, error) {
 		return 0, err
 	}
 
+	fmt.Println("sql open IP :", db.dataSource)
+
 	rows, err := db.Exec(sqlInfo, args...)
 	if err != nil {
 		return 0, err
@@ -180,14 +182,14 @@ func readXlsx(fpath string) [][]string {
 
 func doUpdateSeNoByCaseId(cellRows [][]string) {
 	fmt.Print(cellRows)
-	if cellRows[0][0] != "案件ID" {
-		fmt.Println("未找到 案件ID 列")
-		return
-	}
-	if cellRows[0][1] != "员工ID" {
-		fmt.Println("未找到 员工ID 列")
-		return
-	}
+	// if cellRows[0][0] != "案件ID" {
+	// 	fmt.Println("未找到 案件ID 列")
+	// 	return
+	// }
+	// if cellRows[0][1] != "员工ID" {
+	// 	fmt.Println("未找到 员工ID 列")
+	// 	return
+	// }
 	for k, v := range cellRows {
 		if k != 0 {
 			sql_select_seno := "SELECT se_no FROM sal_emp WHERE se_no = '#{cas_se_no}'"
@@ -509,7 +511,7 @@ func clearRemark6() {
 
 func insertPhoneInfo(rows [][]string) {
 	for k, v := range rows {
-		if k != 0 {
+		if k != 0 && len(v) == 4 {
 			sql := "INSERT INTO dbo.phone_list (phl_state, phl_name, phl_num, phl_cas_id, phl_cat, phl_count, phl_remark, phl_isdel, phl_isnew, phl_upd_time ) SELECT 1,'#{phl_name}','#{phl_num}',cas_id,'第三方',0,'#{phl_remark}',NULL,1,NULL FROM bank_case WHERE cas_code = '#{cas_code}' and cas_state='0'"
 
 			sql = strings.Replace(sql, "#{phl_name}", v[0], -1)
@@ -524,6 +526,45 @@ func insertPhoneInfo(rows [][]string) {
 	sql := "DELETE FROM dbo.phone_list WHERE phl_id NOT IN (SELECT MAX ( phl_id ) FROM dbo.phone_list GROUP BY phl_name, phl_num, phl_cas_id, phl_cat, phl_count, phl_remark)"
 	fmt.Println(sql)
 	DoExec(sql)
+}
+
+func withdrawalCase(rows [][]string) {
+	for k, v := range rows {
+		if k != 0 && len(v) == 1 {
+			sql := "UPDATE bank_case SET cas_state = '3' WHERE cas_code = '#{cas_code}' AND cas_state != '3'"
+			casCode := strings.Replace(strings.Replace(v[0], " ", "", -1), "'", "", -1)
+			sql = strings.Replace(sql, "#{cas_code}", casCode, -1)
+			fmt.Println(sql)
+			DoExec(sql)
+		}
+	}
+}
+
+
+func deleteBankCaseOnID(rows [][]string) {
+	for k, v := range rows {
+		if k != 0 && len(v) == 1 {
+			sql := "DELETE FROM bank_case WHERE cas_id = '#{cas_id}'"
+			casID := strings.Replace(strings.Replace(v[0], " ", "", -1), "'", "", -1)
+			sql = strings.Replace(sql, "#{cas_id}", casID, -1)
+			fmt.Println(sql)
+			DoExec(sql)
+		}
+	}
+}
+
+func supplementCustomersHomePhoneNumber(rows [][]string) {
+	for k, v := range rows {
+		if k != 0 && len(v) == 2 {
+			sql := "UPDATE bank_case SET cas_hom_pho = '#{cas_hom_pho}' WHERE cas_code = '#{cas_code}' AND cas_state != '3'"
+			casCode := strings.Replace(strings.Replace(v[0], " ", "", -1), "'", "", -1)
+			casHomPho := strings.Replace(strings.Replace(v[1], " ", "", -1), "'", "", -1)
+			sql = strings.Replace(sql, "#{cas_code}", casCode, -1)
+			sql = strings.Replace(sql, "#{cas_hom_pho}", casHomPho, -1)
+			fmt.Println(sql)
+			DoExec(sql)
+		}
+	}
 }
 
 func retrieveTableContentByNameUploadItToDatabase(fpath string) {
@@ -618,6 +659,18 @@ func main() {
 			rows := readXlsx(fPath)
 			fmt.Println("Result rows:", rows)
 			insertPhoneInfo(rows)
+		} else if operation == "withdrawalCase" {
+			rows := readXlsx(fPath)
+			fmt.Println("Result rows:", rows)
+			withdrawalCase(rows)
+		} else if operation == "deleteBankCaseOnID" {
+			rows := readXlsx(fPath)
+			fmt.Println("Result rows:", rows)
+			deleteBankCaseOnID(rows)
+		} else if operation == "supplementCustomersHomePhoneNumber" {
+			rows := readXlsx(fPath)
+			fmt.Println("Result rows:", rows)
+			supplementCustomersHomePhoneNumber(rows)
 		} else if operation == "retrieveTableContentByNameUploadItToDatabase" {
 			retrieveTableContentByNameUploadItToDatabase(fPath)
 		} else {
