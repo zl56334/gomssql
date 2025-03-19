@@ -619,9 +619,7 @@ func main() {
 			fmt.Println("Result rows:", rows)
 			insertPhoneInfo(rows)
 		} else if operation == "retrieveTableContentByNameUploadItToDatabase" {
-			rows := retrieveTableContentByNameUploadItToDatabase(fPath)
-			fmt.Println("Result rows:", rows)
-			insertPhoneInfo(rows)
+			retrieveTableContentByNameUploadItToDatabase(fPath)
 		} else {
 			help()
 		}
